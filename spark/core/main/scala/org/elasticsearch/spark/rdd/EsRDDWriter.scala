@@ -37,8 +37,9 @@ import org.elasticsearch.hadoop.util.ObjectUtils
 import org.elasticsearch.spark.serialization.ScalaMapFieldExtractor
 import org.elasticsearch.spark.serialization.ScalaMetadataExtractor
 import org.elasticsearch.spark.serialization.ScalaValueWriter
-
 import scala.reflect.ClassTag
+
+import org.apache.spark.util.TaskCompletionListener
 
 
 private[spark] class EsRDDWriter[T: ClassTag](val serializedSettings: String,
@@ -63,8 +64,9 @@ private[spark] class EsRDDWriter[T: ClassTag](val serializedSettings: String,
 
   def write(taskContext: TaskContext, data: Iterator[T]): Unit = {
     val writer = RestService.createWriter(settings, taskContext.partitionId.toLong, -1, log)
-
-    taskContext.addTaskCompletionListener((TaskContext) => writer.close())
+    taskContext.addTaskCompletionListener(new TaskCompletionListener {
+      override def onTaskCompletion(context: TaskContext): Unit = writer.close()
+    })
 
     if (runtimeMetadata) {
       writer.repository.addRuntimeFieldExtractor(metaExtractor)
